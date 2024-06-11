@@ -1,0 +1,6 @@
+com/scholastic/litplatformbaapi/service/support/SrmServiceImplTest.class
+com/scholastic/litplatformbaapi/controller/DemographicsControllerTest.class
+com/scholastic/litplatformbaapi/service/AssessmentServiceFactoryTest.class
+com/scholastic/litplatformbaapi/controller/AssessmentControllerTest.class
+com/scholastic/litplatformbaapi/controller/advice/ExceptionHandlerAdviceTest.class
+com/scholastic/litplatformbaapi/service/support/DemographicsServiceTest.class

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DemographicsServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">lit-platform-ba-api</a> &gt; <a href="index.source.html" class="el_package">com.scholastic.litplatformbaapi.service.support</a> &gt; <span class="el_source">DemographicsServiceImpl.java</span></div><h1>DemographicsServiceImpl.java</h1><pre class="source lang-java linenums">package com.scholastic.litplatformbaapi.service.support;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.scholastic.litplatformbaapi.model.IdAndNameApiModel;
+import com.scholastic.litplatformbaapi.model.SchoolCalenderApiModel;
+import com.scholastic.litplatformbaapi.model.SectionApiModel;
+import com.scholastic.litplatformbaapi.service.DemographicsService;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+
+import javax.annotation.PostConstruct;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.scholastic.litplatformbaapi.util.Constants.SRM_PRODUCT_CODE;
+
+@Service
+<span class="fc" id="L24">public class DemographicsServiceImpl implements DemographicsService {</span>
+
+    @Value(&quot;${sdmBaseUrl}&quot;)
+    public String sdmBaseUrl;
+
+    @Value(&quot;${sdmBearerToken}&quot;)
+    public String sdmBearerToken;
+
+    private WebClient webClient;
+
+    @PostConstruct
+    public void init() {
+<span class="nc" id="L36">        this.webClient = WebClient.create(sdmBaseUrl);</span>
+<span class="nc" id="L37">    }</span>
+
+    @Override
+    public List&lt;IdAndNameApiModel&gt; getSDMSchoolsForDistrict(Long districtId) throws JsonProcessingException {
+<span class="fc" id="L41">        Mono&lt;String&gt; sdmSchoolsInDistrictResponse = webClient.get()</span>
+<span class="fc" id="L42">                .uri(&quot;/composite/staff/0/organizations?parent=&quot; + districtId)</span>
+<span class="pc" id="L43">                .headers(h -&gt; h.setBearerAuth(sdmBearerToken))</span>
+<span class="fc" id="L44">                .accept(MediaType.APPLICATION_JSON)</span>
+<span class="fc" id="L45">                .retrieve()</span>
+<span class="fc" id="L46">                .bodyToMono(String.class);</span>
+
+<span class="fc" id="L48">        return Arrays.stream(new ObjectMapper().readValue(sdmSchoolsInDistrictResponse.block(), IdAndNameApiModel[].class)).toList();</span>
+    }
+
+    @Override
+    public boolean isSchoolEntitledToProduct(IdAndNameApiModel school) {
+<span class="fc" id="L53">        Mono&lt;String&gt; sdmEntitlementsResponse = webClient.get()</span>
+<span class="fc" id="L54">                .uri(&quot;/subscriptions/&quot; + school.getIdentifiers().get(&quot;ucn&quot;).toString().replace(&quot;\&quot;&quot;, &quot;&quot;) + &quot;/lookup-by-ucn?productCode=&quot; + SRM_PRODUCT_CODE)</span>
+<span class="pc" id="L55">                .headers(h -&gt; h.setBearerAuth(sdmBearerToken))</span>
+<span class="fc" id="L56">                .accept(MediaType.APPLICATION_JSON)</span>
+<span class="fc" id="L57">                .retrieve()</span>
+<span class="fc" id="L58">                .bodyToMono(String.class);</span>
+
+<span class="pc bpc" id="L60" title="1 of 4 branches missed.">        return sdmEntitlementsResponse.block() != null &amp;&amp; !(sdmEntitlementsResponse.block().replace(&quot; &quot;, &quot;&quot;).equals(&quot;[]&quot;));</span>
+    }
+
+    @Override
+    public List&lt;SchoolCalenderApiModel&gt; getSchoolYearsForUser(String orgId, String staffId) throws JsonProcessingException {
+<span class="fc" id="L65">        Mono&lt;String&gt; sdmSchoolCalenderResponse = webClient.get()</span>
+<span class="fc" id="L66">                .uri(&quot;/composite/staff/&quot;  + staffId + &quot;/organization/&quot; + orgId + &quot;/school-calendars&quot; )</span>
+<span class="pc" id="L67">                .headers(h -&gt; h.setBearerAuth(sdmBearerToken))</span>
+<span class="fc" id="L68">                .accept(MediaType.APPLICATION_JSON)</span>
+<span class="fc" id="L69">                .retrieve()</span>
+<span class="fc" id="L70">                .bodyToMono(String.class);</span>
+        
+<span class="fc" id="L72">        return Arrays.stream(new ObjectMapper().readValue(sdmSchoolCalenderResponse.block(), SchoolCalenderApiModel[].class)).toList();</span>
+    }
+
+    @Override
+    public List&lt;SectionApiModel&gt; getSectionsForTeacher(String staffId) throws JsonProcessingException {
+<span class="fc" id="L77">        Mono&lt;String&gt; sdmSchoolCalenderResponse = webClient.get()</span>
+<span class="fc" id="L78">                .uri(&quot;/roster/sections?staffId=&quot;  + staffId )</span>
+<span class="pc" id="L79">                .headers(h -&gt; h.setBearerAuth(sdmBearerToken))</span>
+<span class="fc" id="L80">                .accept(MediaType.APPLICATION_JSON)</span>
+<span class="fc" id="L81">                .retrieve()</span>
+<span class="fc" id="L82">                .bodyToMono(String.class);</span>
+
+<span class="fc" id="L84">        return Arrays.stream(new ObjectMapper()</span>
+<span class="fc" id="L85">                        .readValue(sdmSchoolCalenderResponse.block(), SectionApiModel[].class)).filter(sectionApiModel</span>
+<span class="fc" id="L86">                        -&gt; sectionApiModel.isActive()).collect(Collectors.toList());</span>
+
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

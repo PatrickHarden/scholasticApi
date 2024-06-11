@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssessmentController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">lit-platform-ba-api</a> &gt; <a href="index.source.html" class="el_package">com.scholastic.litplatformbaapi.controller</a> &gt; <span class="el_source">AssessmentController.java</span></div><h1>AssessmentController.java</h1><pre class="source lang-java linenums">package com.scholastic.litplatformbaapi.controller;
+
+import com.scholastic.litplatformbaapi.exception.AssesmentException;
+import com.scholastic.litplatformbaapi.model.StudentSrmAssignment;
+import com.scholastic.litplatformbaapi.response.Assessment;
+import com.scholastic.litplatformbaapi.service.AssessmentServiceFactory;
+import com.scholastic.litplatformbaapi.util.Constants;
+
+import io.swagger.v3.oas.annotations.Operation;
+
+import java.util.List;
+
+import javax.validation.Valid;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping(&quot;/api/assessment&quot;)
+public class AssessmentController {
+    private final AssessmentServiceFactory assessmentServiceFactory;
+
+    @Autowired
+<span class="fc" id="L31">    public AssessmentController(AssessmentServiceFactory assessmentServiceFactory) {</span>
+<span class="fc" id="L32">        this.assessmentServiceFactory = assessmentServiceFactory;</span>
+<span class="fc" id="L33">    }</span>
+
+    @GetMapping(&quot;/{assessmentType}/{studentId}&quot;)
+    public ResponseEntity&lt;Assessment&gt; getAssessment(@PathVariable  String assessmentType,
+                                                    @PathVariable Integer studentId) {
+<span class="fc" id="L38">        var service = this.assessmentServiceFactory.getService(assessmentType);</span>
+<span class="fc bfc" id="L39" title="All 2 branches covered.">        if(service == null) {</span>
+<span class="fc" id="L40">			throw new AssesmentException(HttpStatus.BAD_REQUEST, Constants.WRONG_ASSESSMENT_TYPE_ERROR);</span>
+        }
+<span class="fc" id="L42">        return ResponseEntity.ok(service.getAssessment(studentId));</span>
+    }
+
+	@Operation(summary = &quot;Assign batch reading measure&quot;, description = &quot;Assign batch reading measure&quot;)
+	@PostMapping(&quot;/{teacherId}/assign&quot;)
+	public ResponseEntity&lt;Void&gt; assignReadingMeasureAssessments(@PathVariable Integer teacherId,
+			@RequestBody @Valid List&lt;StudentSrmAssignment&gt; studentSrmAssignmentList) {
+
+<span class="fc" id="L50">		var service = this.assessmentServiceFactory.getService(&quot;srm&quot;);</span>
+
+
+<span class="fc" id="L53">		service.updateReadingMeasureAssignment(studentSrmAssignmentList, teacherId);</span>
+<span class="fc" id="L54">		return ResponseEntity.ok().build();</span>
+	}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>

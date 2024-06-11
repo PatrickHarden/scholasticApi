@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SrmServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">lit-platform-ba-api</a> &gt; <a href="index.source.html" class="el_package">com.scholastic.litplatformbaapi.service.support</a> &gt; <span class="el_source">SrmServiceImpl.java</span></div><h1>SrmServiceImpl.java</h1><pre class="source lang-java linenums">package com.scholastic.litplatformbaapi.service.support;
+
+import com.scholastic.litplatformbaapi.exception.AssesmentException;
+import com.scholastic.litplatformbaapi.model.LexileStatus;
+import com.scholastic.litplatformbaapi.model.StudentLexileStatus;
+import com.scholastic.litplatformbaapi.model.StudentSrmAssignment;
+import com.scholastic.litplatformbaapi.repository.SrmStatusRepository;
+import com.scholastic.litplatformbaapi.response.Assessment;
+import com.scholastic.litplatformbaapi.response.SrmStatus;
+import com.scholastic.litplatformbaapi.service.AssessmentService;
+import com.scholastic.litplatformbaapi.util.Constants;
+
+import static com.scholastic.litplatformbaapi.util.Constants.BAD_REQUEST_ERROR;
+import static com.scholastic.litplatformbaapi.util.Constants.INVALID_TEACHER_JUDGEMENT_ERROR;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service(&quot;srmService&quot;)
+public class SrmServiceImpl implements AssessmentService {
+
+    private final SrmStatusRepository repository;
+
+    @Autowired
+<span class="fc" id="L36">    public SrmServiceImpl(SrmStatusRepository repository) {</span>
+<span class="fc" id="L37">        this.repository = repository;</span>
+<span class="fc" id="L38">    }</span>
+
+    @Override
+    public Assessment getAssessment(Integer studentId) {
+<span class="fc" id="L42">        var studentLexileData = this.repository.findStudentLexileStatusByStudentId(studentId)</span>
+<span class="fc" id="L43">                .orElseThrow(() -&gt; new AssesmentException(HttpStatus.NOT_FOUND, &quot;No srm assessment found for the student&quot;));</span>
+
+<span class="fc" id="L45">        return Assessment.builder()</span>
+<span class="fc" id="L46">                .srmStatus(mapStudentLexileStatus(studentLexileData))</span>
+<span class="fc" id="L47">                .build();</span>
+    }
+
+    private SrmStatus mapStudentLexileStatus(StudentLexileStatus studentLexileData) {
+<span class="fc" id="L51">        var studentLexileStatusResponse = new SrmStatus();</span>
+<span class="fc" id="L52">        BeanUtils.copyProperties(studentLexileData, studentLexileStatusResponse);</span>
+<span class="fc" id="L53">        return studentLexileStatusResponse;</span>
+    }
+
+	@Override
+	@Transactional
+	public void updateReadingMeasureAssignment(List&lt;StudentSrmAssignment&gt; studentSrmAssignmentList, Integer teacher) {
+<span class="fc bfc" id="L59" title="All 2 branches covered.">		if (studentSrmAssignmentList.isEmpty()) {</span>
+<span class="fc" id="L60">			throw new AssesmentException(HttpStatus.BAD_REQUEST, BAD_REQUEST_ERROR);</span>
+		}
+<span class="fc" id="L62">		studentSrmAssignmentList.forEach(this::validateTeacherAppraisalForBatchAssign);</span>
+
+<span class="fc" id="L64">		Map&lt;String, StudentSrmAssignment&gt; studentLexilePerStudent = studentSrmAssignmentList.stream()</span>
+<span class="fc" id="L65">				.collect(Collectors.toMap(StudentSrmAssignment::getStudentId, Function.identity()));</span>
+
+<span class="fc" id="L67">		List&lt;StudentLexileStatus&gt; studentLexileStatuses = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">		for (Entry&lt;String, StudentSrmAssignment&gt; entry : studentLexilePerStudent.entrySet()) {</span>
+<span class="fc" id="L69">			var sls = new StudentLexileStatus();</span>
+<span class="fc" id="L70">			populateStudentLexileStatus(teacher, entry.getKey(), entry.getValue(), sls);</span>
+
+<span class="fc" id="L72">			studentLexileStatuses.add(sls);</span>
+<span class="fc" id="L73">		}</span>
+
+<span class="fc" id="L75">		repository.saveAll(studentLexileStatuses);</span>
+<span class="fc" id="L76">	}</span>
+
+	private void validateTeacherAppraisalForBatchAssign(StudentSrmAssignment studentSrmAssignment) {
+<span class="fc bfc" id="L79" title="All 2 branches covered.">		if (studentSrmAssignment.getTeacherAppraisal() != null</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">				&amp;&amp; Constants.UNKNOWN.equals(getTeacherJudgement(studentSrmAssignment.getTeacherAppraisal()))) {</span>
+<span class="fc" id="L81">			throw new AssesmentException(HttpStatus.BAD_REQUEST, INVALID_TEACHER_JUDGEMENT_ERROR);</span>
+		}
+<span class="fc" id="L83">	}</span>
+
+	private String getTeacherJudgement(String teacherJudgement) {
+<span class="fc bfc" id="L86" title="All 2 branches covered.">		if (teacherJudgement == null)</span>
+<span class="fc" id="L87">			return null;</span>
+<span class="fc bfc" id="L88" title="All 4 branches covered.">		switch (teacherJudgement.toLowerCase()) {</span>
+		case &quot;below grade level&quot;:
+<span class="fc" id="L90">			return Constants.BELOW_LEVEL;</span>
+		case &quot;above grade level&quot;:
+<span class="fc" id="L92">			return Constants.ABOVE_LEVEL;</span>
+		case &quot;on grade level&quot;:
+<span class="fc" id="L94">			return Constants.ON_LEVEL;</span>
+		default:
+<span class="fc" id="L96">			return Constants.UNKNOWN;</span>
+		}
+	}
+
+	private void populateStudentLexileStatus(Integer teacher, String student, StudentSrmAssignment studentSrmAssignment,
+			StudentLexileStatus sls) {
+<span class="fc" id="L102">		sls.setAssignedDate(studentSrmAssignment.getStartDate());</span>
+<span class="fc" id="L103">		sls.setBenchmark(studentSrmAssignment.getBenchmark());</span>
+<span class="fc" id="L104">		sls.setStatus(LexileStatus.ASSIGNED.getStatus());</span>
+<span class="fc" id="L105">		sls.setStudentId(Integer.parseInt(student));</span>
+<span class="fc" id="L106">		sls.setTeacherId(teacher);</span>
+<span class="fc" id="L107">		sls.setModifiedDate(Instant.now());</span>
+<span class="fc" id="L108">		sls.setCurrentQuestion(0);</span>
+<span class="fc" id="L109">		sls.setTimeSpent(0L);</span>
+<span class="fc" id="L110">		sls.setTeacherJudgement(getTeacherJudgement(studentSrmAssignment.getTeacherAppraisal()));</span>
+<span class="fc" id="L111">	}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.7.202105040129</span></div></body></html>
